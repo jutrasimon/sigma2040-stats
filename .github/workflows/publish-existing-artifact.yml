@@ -1,0 +1,37 @@
+name: Publish compiled dashboard once
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+jobs:
+  publish:
+    # Manual-only recovery during the hosted-runner incident. The matching
+    # just-in-time runner processes this one job and unregisters automatically.
+    runs-on: [self-hosted, stats-publish-dc34236]
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: https://jutrasimon.github.io/sigma2040-stats/
+    steps:
+      - name: Deploy verified existing static artifact
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+            const artifact = await github.rest.actions.getArtifact({...repo, artifact_id: 11368150926});
+            if (artifact.data.expired || artifact.data.name !== 'github-pages' || artifact.data.workflow_run.head_sha !== 'dc342360c5279360c81b1853dae4d28077f67f14') throw Error('Unexpected static artifact');
+            const oidc = await core.getIDToken();
+            core.setSecret(oidc);
+            const response = await github.request('POST /repos/{owner}/{repo}/pages/deployments', {...repo, artifact_id: artifact.data.id, environment: 'github-pages', pages_build_version: context.sha, oidc_token: oidc});
+            core.info('Deployment submitted: ' + response.data.id);
+            for (let i = 0; i < 90; i++) {
+              const result = await github.request('GET /repos/{owner}/{repo}/pages/deployments/{pages_deployment_id}', {...repo, pages_deployment_id: response.data.id});
+              core.info('Pages status: ' + result.data.status);
+              if (result.data.status === 'succeed') return;
+              if (['deployment_failed','deployment_content_failed','deployment_cancelled'].includes(result.data.status)) throw Error('Pages deployment failed');
+              await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+            throw Error('Deployment timeout');
