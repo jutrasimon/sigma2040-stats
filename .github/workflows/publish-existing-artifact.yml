@@ -8,9 +8,8 @@ permissions:
   id-token: write
 jobs:
   publish:
-    # Manual-only recovery during the hosted-runner incident. The matching
-    # just-in-time runner processes this one job and unregisters automatically.
-    runs-on: [self-hosted, stats-publish-dc34236]
+    # A single hosted job reuses the already compiled, verified archive.
+    runs-on: windows-latest
     timeout-minutes: 10
     environment:
       name: github-pages
