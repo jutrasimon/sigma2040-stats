@@ -8,8 +8,9 @@ permissions:
   id-token: write
 jobs:
   publish:
-    # A single hosted job reuses the already compiled, verified archive.
-    runs-on: windows-latest
+    # Explicitly authorized one-time local publication during the hosted-runner incident.
+    # The matching just-in-time runner processes one job and unregisters itself.
+    runs-on: [self-hosted, stats-publish-dc34236]
     timeout-minutes: 10
     environment:
       name: github-pages
